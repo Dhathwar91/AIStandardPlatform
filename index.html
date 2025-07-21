@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document Management Chat</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background-color: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .logout-btn {
+      padding: 8px 15px;
+      border: none;
+      background-color: #e74c3c;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .container {
+      display: flex;
+      height: calc(100vh - 60px);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .chat-panel {
+      width: 1400px;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      background-color: #f1f3f6;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .chat-messages {
+      height: 550px;
+      overflow-y: auto;
+      padding: 10px;
+      background: #fff;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+
+    .chat-message {
+      margin: 5px 0;
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .upload-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .upload-btn:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: #fff;
+      padding: 5px;
+      border-radius: 5px;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .send-btn {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Claude Connect</h1>
+    <button class="logout-btn" onclick="logoutUser()">Logout</button>
+  </div>
+  
+  <div class="container">
+    <div class="chat-panel">
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-message">Welcome to Claude Connect! Upload your documents to begin automated analysis and processing.</div>
+      </div>
+      <div class="chat-input-area">
+        <button class="upload-btn" data-tooltip="Upload PDF, DOC, or TXT files" onclick="uploadFile('document')">📄</button>
+        <button class="upload-btn" data-tooltip="Upload Prompt Template" onclick="uploadFile('template')">📝</button>
+        <input type="text" id="chat-input" placeholder="Type your message..." style="flex:1; padding:10px; border-radius:5px; border:1px solid #ccc;">
+        <button class="send-btn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+      addMessage(message, 'user');
+      input.value = '';
+      
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      const data = await response.json();
+      addMessage(data.reply, 'bot');
+    }
+
+    function addMessage(text, sender) {
+      const chatMessages = document.getElementById('chat-messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-message';
+      msgDiv.textContent = (sender === 'user' ? 'You: ' : 'Bot: ') + text;
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function uploadFile(type) {
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = type === 'document' ? '.pdf,.doc,.txt' : '.json,.txt';
+      fileInput.onchange = async () => {
+        const file = fileInput.files[0];
+        if (file) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('type', type);
+
+          const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await response.json();
+          addMessage(data.reply, 'bot');
+        }
+      };
+      fileInput.click();
+    }
+
+    function logoutUser() {
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
