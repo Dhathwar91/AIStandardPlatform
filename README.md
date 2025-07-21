@@ -1,2 +1,0 @@
-# AIStandardPlatform
-Broadaxis Inc.

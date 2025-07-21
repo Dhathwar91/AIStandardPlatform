@@ -2,15 +2,14 @@ from flask import Flask, request, jsonify, send_from_directory, redirect
 import os
 import sqlite3
 import re
+from flask_cors import CORS
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
+CORS(app)
 
 # --- Upload Folder ---
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# --- Dummy File Store ---
-files_list = []
 
 # --- Database Setup ---
 DB_NAME = 'users.db'
@@ -19,8 +18,7 @@ def init_db():
     if not os.path.exists(DB_NAME):
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        # Add name column to users table
-        c.execute('''CREATE TABLE IF NOT EXISTS users (
+        c.execute('''CREATE TABLE users (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT NOT NULL,
                         email TEXT UNIQUE NOT NULL,
@@ -36,14 +34,11 @@ def validate_credentials(email, password, repeat_password=None):
     errors = []
     if '@' not in email or not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
         errors.append("❌ Invalid email format.")
-
     password_regex = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$'
     if not re.match(password_regex, password):
         errors.append("❌ Password must be at least 8 characters long, include upper & lowercase letters, a number, and a special character.")
-
     if repeat_password is not None and password != repeat_password:
         errors.append("❌ Passwords do not match.")
-
     return errors
 
 def user_exists(email):
@@ -64,27 +59,25 @@ def save_user(name, email, password):
 def check_login(email, password):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
+    c.execute("SELECT name FROM users WHERE email = ? AND password = ?", (email, password))
     user = c.fetchone()
     conn.close()
-    return user is not None
+    if user:
+        return user[0]  # Return the name (not just True)
+    return None  # Return None if not found
 
-# --- Routes for Pages ---
+# --- Routes ---
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    return app.send_static_file('index.html')
 
-@app.route('/login')
-def login_page():
-    return send_from_directory('.', 'login.html')
-
-@app.route('/register')
-def register_page():
-    return send_from_directory('.', 'register.html')
+@app.route('/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(app.static_folder, filename)
 
 # --- API Routes ---
 @app.route('/api/register', methods=['POST'])
-def api_register():
+def register():
     data = request.get_json()
     name = data.get('name')
     email = data.get('email')
@@ -107,42 +100,50 @@ def api_login():
     email = data.get('email')
     password = data.get('password')
 
-    if check_login(email, password):
-        return jsonify({'success': True, 'message': '✅ Login successful!'})
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT name FROM users WHERE email = ? AND password = ?", (email, password))
+    user = c.fetchone()
+    conn.close()
+
+    if user:
+        return jsonify({
+            'success': True,
+            'message': '✅ Login successful!',
+            'name': user[0]  # Send the user's name
+        })
     else:
         return jsonify({'success': False, 'errors': ['❌ Invalid email or password']}), 401
 
-# --- Other Endpoints ---
-@app.route('/chat', methods=['POST'])
-def chat():
-    user_message = request.json.get('message', '')
-    bot_reply = f"🤖 You said: '{user_message}'"
-    return jsonify({'reply': bot_reply})
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+    repeat_password = data.get('repeat_password')
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    file = request.files['file']
-    file_type = request.form['type']
-    file.save(os.path.join(UPLOAD_FOLDER, file.filename))
-    tag = 'rfp' if file_type == 'document' else 'rfi'
-    files_list.append({'name': file.filename, 'tag': tag})
-    return jsonify({'reply': f"✅ File '{file.filename}' uploaded successfully."})
+    # Validate inputs
+    errors = validate_credentials(email, password, repeat_password)
+    if errors:
+        return jsonify({'success': False, 'errors': errors}), 400
 
-@app.route('/files')
-def files():
-    return jsonify(files_list)
+    # Check if user exists with given name and email
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE name = ? AND email = ?", (name, email))
+    user = c.fetchone()
 
-@app.route('/logout')
-def logout():
-    return redirect('/login')
+    if not user:
+        conn.close()
+        return jsonify({'success': False, 'errors': ['❌ User with this name and email does not exist.']}), 404
 
+    # Update password for existing user
+    c.execute("UPDATE users SET password = ? WHERE name = ? AND email = ?", (password, name, email))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'message': '✅ Password updated successfully!'})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)
-
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app)  # <-- Add this line after creating your Flask app
-
-

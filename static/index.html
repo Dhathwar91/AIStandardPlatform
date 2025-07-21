@@ -107,14 +107,16 @@
 </head>
 <body>
   <div class="header">
-    <h1>Claude Connect</h1>
-    <button class="logout-btn" onclick="logoutUser()">Logout</button>
+    <h1>Connect</h1>
+    <p><a href="#" onclick="logoutUser()">Logout</a></p>
   </div>
   
   <div class="container">
     <div class="chat-panel">
       <div class="chat-messages" id="chat-messages">
-        <div class="chat-message">Welcome to Claude Connect! Upload your documents to begin automated analysis and processing.</div>
+        <div id="welcomeMessage" class="chat-message">
+Welcome! Upload your documents to begin automated analysis and processing.</div>
+
       </div>
       <div class="chat-input-area">
         <button class="upload-btn" data-tooltip="Upload PDF, DOC, or TXT files" onclick="uploadFile('document')">📄</button>
@@ -126,6 +128,14 @@
   </div>
 
   <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const userName = localStorage.getItem('userName');
+      if (userName) {
+        document.getElementById("welcomeMessage").innerText = `Welcome ${userName}, upload your documents to begin automated analysis and processing.`;
+      }
+    });
+
+
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const message = input.value.trim();
@@ -173,9 +183,11 @@
       fileInput.click();
     }
 
-    function logoutUser() {
-      window.location.href = 'login.html';
-    }
+  
+      function logoutUser() {
+  localStorage.removeItem('userName');
+  window.location.href = 'login.html';
+}
   </script>
 </body>
 </html>

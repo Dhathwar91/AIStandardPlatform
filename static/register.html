@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Register</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="form-container">
+    <h1>Register</h1>
+    <form id="registerForm">
+      <input type="text" id="name" placeholder="Your Name" required />
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <input type="password" id="repeat_password" placeholder="Repeat Password" required />
+      <button type="submit">Register</button>
+    </form>
+    <p class="message" id="msg"></p>
+    <p>
+      Already have an account? <a href="login.html">Login</a><br />
+      <a href="forgot.html">Forgot password?</a>
+    </p>
+  </div>
+
+  <script>
+    const form = document.getElementById('registerForm');
+    const msg = document.getElementById('msg');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.innerText = '';
+
+      const name = form.name.value.trim();
+      const email = form.email.value.trim();
+      const password = form.password.value.trim();
+      const repeat_password = form.repeat_password.value.trim();
+
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, email, password, repeat_password }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        window.location.href = 'login.html';
+      } else {
+        msg.innerText = data.errors.join('\n');
+      }
+    });
+  </script>
+</body>
+</html>
