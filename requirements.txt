@@ -1,0 +1,7 @@
+streamlit
+anthropic
+python-dotenv
+mcp
+PyPDF2
+python-docx
+nest-asyncio
